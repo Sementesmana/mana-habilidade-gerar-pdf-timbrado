@@ -1,0 +1,61 @@
+name: Create GitHub Release
+
+# Distribuição de habilidades Maná Builder é via TAG GIT, NÃO via PyPI/GH Packages.
+# Razão: GitHub Packages PyPI foi descontinuado em 2024 (404). Padrão atual:
+# consumidor faz `pip install git+https://github.com/Sementesmana/<repo>.git@vX.Y.Z`.
+#
+# Este workflow só CRIA a GitHub Release (com wheel + sdist anexados) quando
+# uma tag vX.Y.Z é pushada. Release não é estritamente necessária pra git+https
+# funcionar — mas facilita changelog e download manual.
+#
+# Pra publicar nova versão:
+#   1. Bumpa version em pyproject.toml
+#   2. git commit + push
+#   3. git tag vX.Y.Z
+#   4. git push origin vX.Y.Z
+#
+# Workflow dispara no push da tag e cria a Release.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write   # precisa write em contents pra criar Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build hatchling
+
+      - name: Build package
+        run: python -m build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Release ${{ github.ref_name }}"
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.whl
+
+      - name: Open PR in plugin-mana-skills (TODO)
+        if: false   # ativar quando Sementesmana/plugin-mana-skills existir
+        run: |
+          echo "TODO: abrir PR automático em Sementesmana/plugin-mana-skills"
+          echo "Adicionando/atualizando _kits/skills/habilidades/<nome>/SKILL.md"
+          # gh CLI ou script Python via PR API
