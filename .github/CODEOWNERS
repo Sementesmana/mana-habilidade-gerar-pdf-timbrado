@@ -1,18 +1,9 @@
-# CODEOWNERS — Maná Builder
-# Substituir após "Use this template" pelo dono real da habilidade.
+# CODEOWNERS — mana-habilidade-gerar-pdf-timbrado
 # Ver ADR 2026-06-26-fluxo-criacao-habilidade-mana-builder no vault.
 
-# Por padrão, dono da habilidade aprova tudo
-* @PLACEHOLDER-owner
+* @xayer-mana
 
-# Mudanças no SKILL.md tocam o manual operacional — duas revisões
-SKILL.md @PLACEHOLDER-owner @xayer-mana
-
-# Mudanças no manifest.yaml afetam catálogo + matriz — duas revisões
-manifest.yaml @PLACEHOLDER-owner @xayer-mana
-
-# Mudanças no pyproject.toml (versionamento, deps) — duas revisões
-pyproject.toml @PLACEHOLDER-owner @xayer-mana
-
-# Workflows + segurança — Xayer aprova
+SKILL.md @xayer-mana
+manifest.yaml @xayer-mana
+pyproject.toml @xayer-mana
 /.github/ @xayer-mana

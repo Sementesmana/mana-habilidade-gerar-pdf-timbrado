@@ -1,143 +1,128 @@
-# template-habilidade-mana
+# mana-habilidade-gerar-pdf-timbrado
 
-> Template **GitHub Repository** pra criar habilidades novas da **Maná Builder**.
+> Habilidade canônica da **Maná Builder** que gera PDFs com **timbre Maná** (cabeçalho verde + ouro + rodapé + tabelas) via `reportlab` puro.
 
-Este repo é um **GitHub Template Repository**. Quando você precisar criar uma habilidade nova, clica em **"Use this template"** no GitHub e o repo é clonado pra você com toda a estrutura pronta.
+[![status](https://img.shields.io/badge/status-beta-blue)]()
+[![version](https://img.shields.io/badge/version-0.1.0-green)]()
+[![python](https://img.shields.io/badge/python-%3E%3D3.10-blue)]()
 
-## Quando usar
+## Por que existe
 
-Quando você está construindo um agente Maná e identifica uma **capacidade reusável** que não existe ainda como habilidade da Maná Builder, e que vai ser usada por **2+ agentes** (regra da 2ª cópia — ver [[ADR 2026-06-26 fluxo criação habilidade]]).
+6 funções de cabeçalho/rodapé copy-paste em 2 agentes hoje:
+- `agente-gestor-comercial`: `pdf_ocorrencia.py` com 4 funções (ocorrência, vendedor, geral, cliente)
+- `agente-gestor-estoque`: `pdf_variedade.py` com 2 funções (variedade, resumo)
 
-Exceções à regra da 2ª cópia (extrair direto, mesmo com 1 consumidor):
-- Capacidade transversal de segurança (ex: pseudonimização)
-- Capacidade que toca PII / LGPD
-- Decisão explícita do Xayer ou ADR específico
+Esta habilidade substitui tudo isso com 1 classe `PDFMana` + 2 atalhos.
 
-## Como usar
-
-### Passo 1 — Criar repo a partir do template
-
-1. Vá em https://github.com/Sementesmana/template-habilidade-mana
-2. Clique em **"Use this template" → "Create a new repository"**
-3. Nome do repo: `mana-habilidade-<verbo-substantivo>` (ex: `mana-habilidade-pseudonimizar-pii`, `mana-habilidade-extrair-pdf`)
-4. Owner: `Sementesmana`
-5. Visibilidade: **Private**
-6. Clique **Create repository**
-
-### Passo 2 — Clone local e renomeie placeholders
+## Instalação
 
 ```bash
-git clone https://github.com/Sementesmana/mana-habilidade-<nome>.git
-cd mana-habilidade-<nome>
-
-# Renomear pasta do pacote
-mv src/mana_habilidade_placeholder src/mana_habilidade_<nome_sem_hifen_lowercase>
-
-# Substituir placeholders em pyproject.toml, manifest.yaml, SKILL.md
-# (manual ou via sed — ver Passo 3)
+pip install "git+https://github.com/Sementesmana/mana-habilidade-gerar-pdf-timbrado.git@v0.1.0"
 ```
 
-### Passo 3 — Substituir placeholders
+(GitHub Packages PyPI foi descontinuado em 2024 — padrão Maná é git tag + git+https.)
 
-Procure por `<HABILIDADE>` em todos os arquivos e substitua pelo nome real da habilidade. Locais:
-- `pyproject.toml` → `name`, `description`
-- `manifest.yaml` → `nome`, `descricao`, `owner`
-- `SKILL.md` → todo o conteúdo
-- `README.md` → criar/atualizar com descrição real
-- `src/mana_habilidades_<nome>/__init__.py` → ajustar exports
-
-### Passo 4 — Implementar a habilidade
-
-1. Código em `src/mana_habilidades_<nome>/`
-2. Testes em `tests/` (cobertura mínima >70%)
-3. Type hints + docstrings obrigatórios em API pública
-4. Exemplo de uso em `docs/EXEMPLO_USO.md`
-
-### Passo 5 — Preencher SKILL.md
-
-O `SKILL.md` vai pro plugin Maná de Skills no Cowork (`Sementesmana/plugin-mana-skills`) — é como a IA (Claude/Cowork) descobre que essa habilidade existe e quando usar.
-
-Critérios mínimos:
-- "Quando usar" claro (1-3 frases)
-- "Input" e "Output" tipados
-- Exemplo de código real
-- Limitações conhecidas
-
-### Passo 6 — Push e publish
-
-```bash
-git add .
-git commit -m "feat: implementação inicial da habilidade <nome>"
-git push origin main
-```
-
-GitHub Actions roda automaticamente:
-1. CI (`ci.yml`) — lint + test
-2. Publish (`publish.yml`) — publica `mana-habilidade-<nome>==0.1.0` no GitHub Packages
-
-### Passo 7 — Documentar no vault
-
-Crie nota em `ManaVault/06-Agentes-e-Skills/habilidades/<nome>.md` (template em `_Templates/nota-habilidade.md` do vault).
-
-### Passo 8 — Distribuir via plugin Maná
-
-Abra PR em `Sementesmana/plugin-mana-skills`:
-- Adicione `_kits/skills/habilidades/<nome>/SKILL.md` (cópia do SKILL.md deste repo)
-- Atualize `CHANGELOG.md` central
-
-CODEOWNERS revisa, merge, Cowork de todos os devs pega na próxima atualização.
-
-## Consumo por outros agentes
-
-> **GitHub Packages PyPI foi descontinuado em 2024.** Distribuição é via **tag git + git+https**.
-> Workflow `publish.yml` foi reescrito pra apenas criar GitHub Release ao pushar tag `v*.*.*`.
-
-Agente que quer usar essa habilidade adiciona ao `requirements.txt`:
-
-```
-mana-habilidade-<nome> @ git+https://github.com/Sementesmana/mana-habilidade-<nome>.git@v0.1.0
-```
-
-(Em ambientes CI/Railway, usar `${GITHUB_TOKEN}` no header pq repo é privado.)
-
-E importa:
+## Uso rápido
 
 ```python
-from mana_habilidade_<nome> import ...
+from mana_habilidade_gerar_pdf_timbrado import PDFMana, gerar_pdf_simples, gerar_pdf_tabela
+
+# Atalho 1 — texto
+pdf_bytes = gerar_pdf_simples(
+    subtitulo="Pareto · 28/06/2026",
+    agente="agente-gestor-comercial",
+    paragrafos=["Resumo do dia...", "Detalhes adicionais..."],
+)
+
+# Atalho 2 — tabela
+pdf_bytes = gerar_pdf_tabela(
+    subtitulo="Posição Estoque",
+    agente="agente-gestor-estoque",
+    cabecalho=["Cultivar", "Saldo", "Vendido %"],
+    linhas=[["76KA", "1500", "30%"], ["78KA", "850", "60%"]],
+)
+
+# Classe (controle fino)
+pdf = PDFMana(subtitulo="X", agente="agente-Y")
+pdf.titulo_secao("Resumo")
+pdf.paragrafo("...")
+pdf.tabela(headers, linhas)
+pdf.quebra_pagina()
+pdf.imagem("chart.png", largura=160, altura=80)
+pdf_bytes = pdf.bytes()
 ```
 
-Pra publicar versão nova:
+## API
+
+### `PDFMana(subtitulo, direita_top, direita_bot, agente, titulo, altura_cabecalho_mm)`
+
+- `.paragrafo(texto, fonte="Helvetica", tamanho=10)` — parágrafo com quebra automática
+- `.titulo_secao(texto)` — título verde negrito
+- `.tabela(cabecalho, linhas, larguras_mm=None)` — tabela com cabeçalho verde + linhas alternadas
+- `.imagem(caminho, largura, altura)` — insere imagem (PNG/JPG)
+- `.quebra_pagina()` — `showPage` + redesenha cabeçalho
+- `.bytes()` — finaliza e retorna `bytes`
+
+### `gerar_pdf_simples(subtitulo, agente, paragrafos, direita_top, direita_bot, titulo)`
+
+Atalho — PDF com cabeçalho + N parágrafos.
+
+### `gerar_pdf_tabela(subtitulo, agente, cabecalho, linhas, larguras_mm, direita_top, direita_bot, titulo, paragrafo_antes)`
+
+Atalho — PDF com (opcional) parágrafo + tabela.
+
+### `CORES_MANA`
+
+Dict com cores reportlab canônicas Maná: `verde`, `verde_escuro`, `ouro`, `cinza_texto`, `cinza_claro`, `branco`.
+
+## Decisões de padronização
+
+Esta habilidade resolve 3 divergências que existiam entre as 6 cópias inline:
+
+| Divergência | Decisão canônica |
+|---|---|
+| Altura cabeçalho 30 vs 32 mm | **30 mm** (mais elegante) |
+| Ouro #B8860B (PDF) vs #B08420 (PNG) | **#B8860B** (CSS oficial Maná) |
+| Logo arquivo externo vs inline | **Desenhada inline** (2 anéis brancos) — sem dep de PNG |
+
+## Dependências
+
+Apenas `reportlab>=4.2`. Sem Pillow, sem fonte externa, sem binário do SO. Roda direto no Railway sem buildpack adicional.
+
+## Comportamento defensivo
+
+- **Parágrafo vazio** → no-op (não estoura).
+- **Cabeçalho vazio na tabela** → no-op.
+- **Quebra de página automática** quando cursor passa da margem inferior (25 mm).
+- **None nas células** convertido pra `""` automaticamente.
+
+## Desenvolvimento
 
 ```bash
-# 1. Bumpa version em pyproject.toml + __init__.py
-# 2. Commit + push
-git commit -am "release v0.2.0: ..."
-git push
-
-# 3. Criar tag + push (workflow cria Release automática)
-git tag v0.2.0
-git push origin v0.2.0
+git clone https://github.com/Sementesmana/mana-habilidade-gerar-pdf-timbrado
+cd mana-habilidade-gerar-pdf-timbrado
+pip install -e ".[dev]"
+pytest                 # 24 testes, 93% cobertura
+ruff check src tests   # lint limpo
 ```
 
 ## Versionamento
 
-Semver estrito ([[ADR 2026-06-26 versionamento distribuição]]):
-- **PATCH** (`0.1.0 → 0.1.1`): bug fix sem mudança de interface
-- **MINOR** (`0.1.0 → 0.2.0`): nova função/método, retrocompatível
-- **MAJOR** (`0.1.0 → 1.0.0`): breaking change — exige ADR específico de breaking change
-
-## ADRs aplicáveis
-
-- [Fluxo criação habilidade](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-fluxo-criacao-habilidade-mana-builder.md)
-- [Versionamento + distribuição](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-versionamento-distribuicao-mana-builder.md)
-- [Plugin Maná Skills](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-plugin-mana-skills-cowork.md)
-- [Maná Builder + Matriz](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-mana-builder-matriz-cobertura.md)
+Semver. Bumpar versão em `pyproject.toml`, `__init__.py` e `manifest.yaml`, commitar, taggar e pushar.
 
 ## Suporte
 
-- Skill `nova-habilidade-mana` no Cowork orienta cada etapa
-- Dono da habilidade = quem criou (registrado em `CODEOWNERS` + `manifest.yaml`)
-- Dúvidas estruturais: Xayer
+- Dono: @xayer-mana
+- Issues: https://github.com/Sementesmana/mana-habilidade-gerar-pdf-timbrado/issues
+- Skill canônica no Cowork: `gerar-pdf-timbrado` (após merge em `Sementesmana/plugin-mana-skills`)
+
+## ADRs aplicáveis
+
+- [2026-06-24 — plataforma agêntica 5 camadas](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-24-plataforma-agentica-mana-5-camadas.md)
+- [2026-06-26 — Maná Builder + Matriz](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-mana-builder-matriz-cobertura.md)
+- [2026-06-26 — fluxo de criação de habilidade](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-fluxo-criacao-habilidade-mana-builder.md)
+- [2026-06-26 — distribuição via git tag](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-distribuicao-via-git-tag-pacotes-mana-builder.md)
+- [2026-06-26 — plugin Maná Skills no Cowork](https://github.com/Sementesmana/mana-vault/blob/main/08-Decisoes/2026-06-26-plugin-mana-skills-cowork.md)
 
 ---
 

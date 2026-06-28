@@ -1,16 +1,16 @@
 [project]
-name = "mana-habilidade-placeholder"
+name = "mana-habilidade-gerar-pdf-timbrado"
 version = "0.1.0"
-description = "PLACEHOLDER — descrição da habilidade Maná (substituir após Use this template)"
+description = "Geração de PDF com timbre canônico Maná (cabeçalho verde + ouro, rodapé, tabelas, parágrafos) via reportlab puro — sem dep de arquivo de logo, sem binário do SO."
 readme = "README.md"
 license = { text = "Proprietary" }
 requires-python = ">=3.10"
 authors = [
     { name = "Sementes Maná LTDA" }
 ]
-keywords = ["mana", "habilidade", "mana-builder", "ia-first", "agro"]
+keywords = ["mana", "habilidade", "mana-builder", "pdf", "reportlab", "timbre", "agro"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
@@ -21,8 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
-    # Adicione as dependências da habilidade aqui.
-    # Mantenha enxuto — habilidade é pra ser pequena e focada.
+    "reportlab>=4.2",
 ]
 
 [project.optional-dependencies]
@@ -34,16 +33,16 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Sementesmana/mana-habilidade-placeholder"
-Repository = "https://github.com/Sementesmana/mana-habilidade-placeholder"
-Issues = "https://github.com/Sementesmana/mana-habilidade-placeholder/issues"
+Homepage = "https://github.com/Sementesmana/mana-habilidade-gerar-pdf-timbrado"
+Repository = "https://github.com/Sementesmana/mana-habilidade-gerar-pdf-timbrado"
+Issues = "https://github.com/Sementesmana/mana-habilidade-gerar-pdf-timbrado/issues"
 
 [build-system]
 requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mana_habilidade_placeholder"]
+packages = ["src/mana_habilidade_gerar_pdf_timbrado"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -67,7 +66,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
-ignore = ["E501"]  # line too long handled by black-compatible formatter
+ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"
