@@ -19,7 +19,9 @@ ultima-revisao: 2026-06-28
 # alpha = extração inicial sem consumidor migrado
 # beta = consumidor real mapeado, gaps cobertos por v0.x, sem migração ainda
 # producao = pelo menos 1 consumidor real migrou sem regressão
-status: beta
+status: producao
+consumidores-migrados:
+  - agente-gestor-comercial (commit fd613b1, 2026-06-28) — pdf_ocorrencia.py
 
 # Matriz 3D (Maná Builder)
 cadeia: transversal           # apoio | negocio | gestao | transversal
