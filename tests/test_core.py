@@ -14,6 +14,7 @@ import re
 
 from mana_habilidade_gerar_pdf_timbrado import (
     CORES_MANA,
+    SEVERIDADE_CORES,
     PDFMana,
     gerar_pdf_simples,
     gerar_pdf_tabela,
@@ -267,3 +268,142 @@ def test_pdf_termina_com_eof_marker() -> None:
     b = pdf.bytes()
     # %%EOF deve aparecer no final (pode ter newline depois)
     assert re.search(rb"%%EOF\s*$", b) is not None
+
+
+# ─────────────────────────────────────────────────────────────────────
+# v0.2.0 — primitivos novos
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestSeveridadeCores:
+    def test_cores_canonicas_existem(self) -> None:
+        for chave in ("critico", "alto", "medio", "baixo", "reincidencia"):
+            assert chave in SEVERIDADE_CORES
+
+
+class TestChip:
+    def test_chip_simples(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.chip("CRÍTICO")
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_chip_severidade_baixo(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.chip_severidade("BAIXO")
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_chip_severidade_critico_com_acento(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.chip_severidade("CRÍTICO")
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_chip_texto_vazio_nao_quebra(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.chip("")
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_chip_nao_avancar_y(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        y_antes = pdf._y_atual
+        pdf.chip("X", nao_avancar_y=True)
+        assert pdf._y_atual == y_antes
+
+
+class TestTabelaRotuloValor:
+    def test_tabela_simples(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.tabela_rotulo_valor([
+            ("Vendedor", "Carlos"),
+            ("Cliente", "Fazenda São João"),
+            ("CNPJ", "12.345.678/0001-90"),
+        ])
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_tabela_vazia_nao_quebra(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.tabela_rotulo_valor([])
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_tabela_truncamento_valor(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.tabela_rotulo_valor([("Campo", "x" * 200)], max_chars_valor=10)
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+
+class TestDrillCompacto:
+    def test_drill_basico(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.drill_compacto(
+            titulo="Pedidos detalhados",
+            cabecalho=["PEDIDO", "CULTIVAR", "QTD", "TOTAL"],
+            linhas_pai_filhos=[
+                ("123", [["76KA", "100", "R$ 50.000"], ["78KA", "50", "R$ 30.000"]]),
+                ("124", [["80KA", "200", "R$ 100.000"]]),
+            ],
+        )
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+    def test_drill_cabecalho_vazio_nao_quebra(self) -> None:
+        pdf = PDFMana(subtitulo="t", agente="agente-x")
+        pdf.drill_compacto(titulo="X", cabecalho=[], linhas_pai_filhos=[])
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+
+class TestSubtituloCorCustomizavel:
+    def test_subtitulo_cor_custom(self) -> None:
+        # Caso do agente-gestor-comercial: ouro mais claro
+        pdf = PDFMana(
+            subtitulo="t",
+            agente="agente-x",
+            subtitulo_cor=CORES_MANA["ouro_claro"],
+            direita_top_fonte="Helvetica",
+            direita_top_tamanho=9,
+        )
+        pdf.paragrafo("x")
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+
+
+class TestCenarioRealGestorComercial:
+    def test_pdf_cobranca_estilo_gestor_comercial(self) -> None:
+        """Replica o caso do pdf_ocorrencia.py: GAP_CRE com chip + tabela + drill."""
+        pdf = PDFMana(
+            subtitulo="Cobranca de ocorrencia",
+            direita_top="Gestor Comercial Mana",
+            direita_bot="cockpit GRD - supervisao",
+            agente="agente-gestor-comercial",
+            altura_cabecalho_mm=32,
+            subtitulo_cor=CORES_MANA["ouro_claro"],
+            direita_top_fonte="Helvetica",
+            direita_top_tamanho=9,
+        )
+        pdf.titulo_secao("Fazenda Sao Joao")
+        pdf.chip_severidade("ALTO", largura_mm=30, nao_avancar_y=True)
+        pdf.chip("REINCIDENCIA x3", cor=SEVERIDADE_CORES["reincidencia"],
+                 x_mm=60, largura_mm=45)
+        pdf.tabela_rotulo_valor([
+            ("Categoria", "Gap de credito (CRE)"),
+            ("Vendedor responsavel", "Carlos"),
+            ("Cliente", "Fazenda Sao Joao"),
+            ("CNPJ", "12.345.678/0001-90"),
+            ("Valor / exposicao", "R$ 250.000,00"),
+        ])
+        pdf.drill_compacto(
+            titulo="Pedidos detalhados",
+            cabecalho=["PEDIDO", "CULTIVAR", "QTD", "TOTAL"],
+            linhas_pai_filhos=[
+                ("260000123", [["76KA", "100", "R$ 50.000"]]),
+            ],
+        )
+        b = pdf.bytes()
+        assert b.startswith(b"%PDF")
+        assert len(b) > 2000  # tem conteúdo

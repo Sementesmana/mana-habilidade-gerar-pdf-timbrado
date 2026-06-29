@@ -33,9 +33,22 @@ CORES_MANA: dict[str, Color] = {
     "verde": Color(0.114, 0.420, 0.243),         # #1D6B3E
     "verde_escuro": Color(0.075, 0.302, 0.173),  # #134d2c
     "ouro": Color(0.722, 0.525, 0.043),          # #B8860B
+    "ouro_claro": Color(0.831, 0.627, 0.090),    # tom usado por agente-gestor-comercial
     "cinza_texto": Color(0.33, 0.33, 0.33),
     "cinza_claro": Color(0.85, 0.85, 0.85),
     "branco": Color(1, 1, 1),
+    "preto_texto": Color(0.1, 0.1, 0.1),
+}
+
+# Severidade canônica Maná (CRÍTICO/ALTO/MÉDIO/BAIXO).
+# Usado por agentes N3 que classificam ocorrências/alertas (gestor-comercial,
+# gestor-estoque, futuros).
+SEVERIDADE_CORES: dict[str, Color] = {
+    "critico": Color(0.749, 0.090, 0.090),   # vermelho fechado
+    "alto":    Color(0.831, 0.420, 0.043),   # laranja queimado
+    "medio":   Color(0.722, 0.525, 0.043),   # ouro Maná
+    "baixo":   Color(0.114, 0.420, 0.243),   # verde Maná
+    "reincidencia": Color(0.29, 0.106, 0.047),  # marrom escuro (selo REINC)
 }
 
 
@@ -59,8 +72,16 @@ def _desenhar_cabecalho(
     direita_top: str,
     direita_bot: str,
     altura_cabecalho_mm: float = 30,
+    subtitulo_cor: Color | None = None,
+    direita_top_fonte: str = "Helvetica-Bold",
+    direita_top_tamanho: float = 11,
 ) -> None:
-    """Cabeçalho retangular verde no topo da página."""
+    """Cabeçalho retangular verde no topo da página.
+
+    v0.2.0: ganhou `subtitulo_cor` (default = CORES_MANA["ouro"]) e
+    parametrização da fonte/tamanho da direita_top — alguns agentes
+    (gestor-comercial) usam Helvetica 9 em vez de Bold 11.
+    """
     largura, altura = A4
     h = altura_cabecalho_mm * mm
     y_base = altura - h
@@ -74,13 +95,13 @@ def _desenhar_cabecalho(
     c.setFont("Helvetica-Bold", 18)
     c.drawString(25 * mm, altura - h / 2 + 1 * mm, titulo)
 
-    c.setFillColor(CORES_MANA["ouro"])
+    c.setFillColor(subtitulo_cor or CORES_MANA["ouro"])
     c.setFont("Helvetica-Bold", 12)
     c.drawString(25 * mm, altura - h / 2 - 5 * mm, subtitulo)
 
     if direita_top:
         c.setFillColor(CORES_MANA["branco"])
-        c.setFont("Helvetica-Bold", 11)
+        c.setFont(direita_top_fonte, direita_top_tamanho)
         c.drawRightString(largura - 15 * mm, altura - h / 2 + 1 * mm, direita_top)
     if direita_bot:
         c.setFillColor(CORES_MANA["cinza_claro"])
@@ -137,6 +158,9 @@ class PDFMana:
         agente: str = "agente-template",
         titulo: str = "Sementes Mana",
         altura_cabecalho_mm: float = 30,
+        subtitulo_cor: Color | None = None,
+        direita_top_fonte: str = "Helvetica-Bold",
+        direita_top_tamanho: float = 11,
     ) -> None:
         self.subtitulo = subtitulo
         self.direita_top = direita_top
@@ -144,6 +168,9 @@ class PDFMana:
         self.agente = agente
         self.titulo = titulo
         self.altura_cabecalho_mm = altura_cabecalho_mm
+        self.subtitulo_cor = subtitulo_cor
+        self.direita_top_fonte = direita_top_fonte
+        self.direita_top_tamanho = direita_top_tamanho
 
         self._buffer = io.BytesIO()
         self._c = rl_canvas.Canvas(self._buffer, pagesize=A4)
@@ -167,6 +194,9 @@ class PDFMana:
             direita_top=self.direita_top,
             direita_bot=self.direita_bot,
             altura_cabecalho_mm=self.altura_cabecalho_mm,
+            subtitulo_cor=self.subtitulo_cor,
+            direita_top_fonte=self.direita_top_fonte,
+            direita_top_tamanho=self.direita_top_tamanho,
         )
 
     def _garantir_espaco(self, altura_necessaria: float) -> None:
@@ -215,6 +245,205 @@ class PDFMana:
         self._c.setFillColor(CORES_MANA["verde"])
         self._c.drawString(self._margem_esquerda, self._y_atual, texto)
         self._y_atual -= 14
+
+    # ── v0.2.0 — primitivos descobertos na migração do agente-gestor-comercial
+
+    def chip(
+        self,
+        texto: str,
+        cor: Color | None = None,
+        x_mm: float | None = None,
+        largura_mm: float = 30,
+        altura_mm: float = 7,
+        cor_texto: Color | None = None,
+        nao_avancar_y: bool = False,
+    ) -> None:
+        """
+        Desenha chip arredondado colorido com texto centralizado (severidade).
+
+        Padrão Maná: severidade, status, faixa, REINCIDÊNCIA.
+
+        Args:
+            texto: conteúdo do chip (uppercase, curto).
+            cor: cor de fundo (default = SEVERIDADE_CORES["medio"]).
+            x_mm: posição X em mm (default = margem esquerda).
+            largura_mm: largura em mm.
+            altura_mm: altura em mm.
+            cor_texto: cor do texto (default = branco).
+            nao_avancar_y: se True, não avança o cursor (chips na mesma linha).
+        """
+        if not texto:
+            return
+        cor = cor or SEVERIDADE_CORES["medio"]
+        cor_texto = cor_texto or CORES_MANA["branco"]
+        x = x_mm * mm if x_mm is not None else self._margem_esquerda
+
+        self._garantir_espaco(altura_mm * mm + 4)
+        # Fundo arredondado
+        self._c.setFillColor(cor)
+        self._c.roundRect(
+            x,
+            self._y_atual - 1 * mm,
+            largura_mm * mm,
+            altura_mm * mm,
+            2,
+            stroke=0,
+            fill=1,
+        )
+        # Texto centralizado
+        self._c.setFillColor(cor_texto)
+        self._c.setFont("Helvetica-Bold", 9)
+        self._c.drawCentredString(
+            x + (largura_mm * mm) / 2,
+            self._y_atual + 1.2 * mm,
+            texto,
+        )
+
+        if not nao_avancar_y:
+            self._y_atual -= (altura_mm + 5) * mm
+
+    def chip_severidade(
+        self,
+        severidade: str,
+        x_mm: float | None = None,
+        largura_mm: float = 30,
+        nao_avancar_y: bool = False,
+    ) -> None:
+        """
+        Atalho: chip com cor canônica por severidade (critico/alto/medio/baixo).
+
+        `severidade` é case-insensitive; aceita também forma com acento ("crítico").
+        """
+        chave = severidade.lower().strip()
+        chave = chave.replace("í", "i").replace("é", "e")
+        cor = SEVERIDADE_CORES.get(chave, SEVERIDADE_CORES["medio"])
+        self.chip(
+            texto=severidade.upper(),
+            cor=cor,
+            x_mm=x_mm,
+            largura_mm=largura_mm,
+            nao_avancar_y=nao_avancar_y,
+        )
+
+    def tabela_rotulo_valor(
+        self,
+        linhas: list[tuple[str, Any]],
+        rotulo_cor: Color | None = None,
+        valor_cor: Color | None = None,
+        rotulo_x_mm: float | None = None,
+        valor_x_mm: float = 75,
+        max_chars_valor: int = 70,
+    ) -> None:
+        """
+        Tabela 2 colunas: RÓTULO uppercase à esquerda + valor bold à direita.
+
+        Padrão Maná pra "ficha" de pedido/cliente/ocorrência. Cada linha
+        é (rótulo, valor) — rótulo vira UPPERCASE, valor é convertido pra str
+        e truncado em `max_chars_valor`.
+
+        Args:
+            linhas: lista de tuplas (rotulo, valor).
+            rotulo_cor: default = cinza_texto.
+            valor_cor: default = preto_texto.
+            rotulo_x_mm: X do rótulo (default = margem esquerda).
+            valor_x_mm: X do valor em mm (default 75).
+            max_chars_valor: trunca valor em N chars.
+        """
+        if not linhas:
+            return
+        rotulo_cor = rotulo_cor or CORES_MANA["cinza_texto"]
+        valor_cor = valor_cor or CORES_MANA["preto_texto"]
+        x_rotulo = rotulo_x_mm * mm if rotulo_x_mm is not None else self._margem_esquerda
+        altura_linha = 8 * mm
+
+        self._garantir_espaco(altura_linha * len(linhas) + 2 * mm)
+
+        for rotulo, valor in linhas:
+            self._c.setFillColor(rotulo_cor)
+            self._c.setFont("Helvetica", 9)
+            self._c.drawString(x_rotulo, self._y_atual, str(rotulo).upper())
+
+            self._c.setFillColor(valor_cor)
+            self._c.setFont("Helvetica-Bold", 11)
+            self._c.drawString(
+                valor_x_mm * mm,
+                self._y_atual,
+                str(valor)[:max_chars_valor],
+            )
+            self._y_atual -= altura_linha
+        self._y_atual -= 2
+
+    def drill_compacto(
+        self,
+        titulo: str,
+        cabecalho: list[str],
+        linhas_pai_filhos: list[tuple[str, list[list[Any]]]],
+        larguras_mm: list[float] | None = None,
+        max_filhos: int = 6,
+        max_pais: int = 12,
+    ) -> None:
+        """
+        Tabela compacta com drill: linha pai (1 valor) + N linhas filhos.
+
+        Padrão Maná pra: pedidos x itens, vendedor x ocorrências, cliente x pedidos.
+
+        Args:
+            titulo: cabeçalho de seção em verde.
+            cabecalho: ['PEDIDO', 'CULTIVAR', 'QTD', 'TOTAL']. 1ª coluna = chave do pai.
+            linhas_pai_filhos: lista de (chave_pai, lista_filhos).
+                Cada filho é list[Any] alinhado às colunas a partir da 2ª.
+            larguras_mm: opcional — larguras por coluna.
+            max_filhos: trunca filhos por pai.
+            max_pais: trunca número de pais.
+        """
+        if not cabecalho or not linhas_pai_filhos:
+            return
+
+        # Título seção
+        self._garantir_espaco(6 * mm)
+        self._c.setFillColor(CORES_MANA["verde"])
+        self._c.setFont("Helvetica-Bold", 10)
+        self._c.drawString(self._margem_esquerda, self._y_atual, titulo)
+        self._y_atual -= 6 * mm
+
+        # Cabeçalho
+        largura_util_mm = (self._margem_direita - self._margem_esquerda) / mm
+        n = len(cabecalho)
+        if larguras_mm is None or len(larguras_mm) != n:
+            larguras_mm = [largura_util_mm / n] * n
+
+        self._c.setFillColor(CORES_MANA["cinza_texto"])
+        self._c.setFont("Helvetica-Bold", 8)
+        x_cum = self._margem_esquerda
+        for i, h in enumerate(cabecalho):
+            if i == 0:
+                self._c.drawString(x_cum, self._y_atual, str(h))
+            else:
+                self._c.drawRightString(x_cum + larguras_mm[i] * mm, self._y_atual, str(h))
+            x_cum += larguras_mm[i] * mm
+        self._y_atual -= 5 * mm
+
+        # Linhas
+        self._c.setFont("Helvetica", 9)
+        self._c.setFillColor(CORES_MANA["preto_texto"])
+        for pai, filhos in linhas_pai_filhos[:max_pais]:
+            filhos = filhos or [[]]
+            for idx, filho in enumerate(filhos[:max_filhos]):
+                if self._y_atual < self._margem_inferior:
+                    break
+                x_cum = self._margem_esquerda
+                # 1ª coluna = chave do pai (só na 1ª linha do pai)
+                self._c.drawString(x_cum, self._y_atual, str(pai) if idx == 0 else "")
+                x_cum += larguras_mm[0] * mm
+                for i, celula in enumerate(filho[: n - 1]):
+                    self._c.drawRightString(
+                        x_cum + larguras_mm[i + 1] * mm,
+                        self._y_atual,
+                        str(celula),
+                    )
+                    x_cum += larguras_mm[i + 1] * mm
+                self._y_atual -= 5 * mm
+        self._y_atual -= 2
 
     def tabela(
         self,

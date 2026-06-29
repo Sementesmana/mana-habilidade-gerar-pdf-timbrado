@@ -1,6 +1,6 @@
 [project]
 name = "mana-habilidade-gerar-pdf-timbrado"
-version = "0.1.0"
+version = "0.2.0"
 description = "Geração de PDF com timbre canônico Maná (cabeçalho verde + ouro, rodapé, tabelas, parágrafos) via reportlab puro — sem dep de arquivo de logo, sem binário do SO."
 readme = "README.md"
 license = { text = "Proprietary" }

@@ -40,10 +40,11 @@ USO TÍPICO
   >>> bytes_pdf = pdf.bytes()
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from .core import (
     CORES_MANA,
+    SEVERIDADE_CORES,
     PDFMana,
     gerar_pdf_simples,
     gerar_pdf_tabela,
@@ -51,6 +52,7 @@ from .core import (
 
 __all__ = [
     "CORES_MANA",
+    "SEVERIDADE_CORES",
     "PDFMana",
     "gerar_pdf_simples",
     "gerar_pdf_tabela",

@@ -11,10 +11,14 @@ owner: xayer-mana
 codeowners: [xayer-mana]
 
 # Versão
-versao-atual: 0.1.0
+versao-atual: 0.2.0
 ultima-revisao: 2026-06-28
 
 # Status do ciclo de vida
+# ADR 2026-06-28-habilidade-canonica-gate-consumidor-real
+# alpha = extração inicial sem consumidor migrado
+# beta = consumidor real mapeado, gaps cobertos por v0.x, sem migração ainda
+# producao = pelo menos 1 consumidor real migrou sem regressão
 status: beta
 
 # Matriz 3D (Maná Builder)
