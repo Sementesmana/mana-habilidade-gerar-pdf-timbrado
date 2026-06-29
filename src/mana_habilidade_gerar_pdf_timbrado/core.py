@@ -75,12 +75,16 @@ def _desenhar_cabecalho(
     subtitulo_cor: Color | None = None,
     direita_top_fonte: str = "Helvetica-Bold",
     direita_top_tamanho: float = 11,
+    direita_bot_fonte: str = "Helvetica",
+    direita_bot_tamanho: float = 8.5,
+    direita_bot_cor: Color | None = None,
+    mostrar_logo: bool = True,
+    margem_mm: float = 15,
 ) -> None:
     """Cabeçalho retangular verde no topo da página.
 
-    v0.2.0: ganhou `subtitulo_cor` (default = CORES_MANA["ouro"]) e
-    parametrização da fonte/tamanho da direita_top — alguns agentes
-    (gestor-comercial) usam Helvetica 9 em vez de Bold 11.
+    v0.3.0: ganhou `mostrar_logo`, `margem_mm`, `direita_bot_fonte/tamanho/cor`
+    pra migração do agente-gestor-comercial sem regressão visual.
     """
     largura, altura = A4
     h = altura_cabecalho_mm * mm
@@ -89,48 +93,60 @@ def _desenhar_cabecalho(
     c.setFillColor(CORES_MANA["verde"])
     c.rect(0, y_base, largura, h, stroke=0, fill=1)
 
-    _desenhar_logo(c, x=15 * mm, y=altura - h / 2)
+    # Logo opcional (alguns agentes preferem só texto)
+    if mostrar_logo:
+        _desenhar_logo(c, x=margem_mm * mm, y=altura - h / 2)
+        x_texto = (margem_mm + 10) * mm   # 10mm de offset pro título depois do logo
+    else:
+        x_texto = margem_mm * mm
 
     c.setFillColor(CORES_MANA["branco"])
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(25 * mm, altura - h / 2 + 1 * mm, titulo)
+    c.drawString(x_texto, altura - h / 2 + 1 * mm, titulo)
 
     c.setFillColor(subtitulo_cor or CORES_MANA["ouro"])
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(25 * mm, altura - h / 2 - 5 * mm, subtitulo)
+    c.drawString(x_texto, altura - h / 2 - 5 * mm, subtitulo)
 
     if direita_top:
         c.setFillColor(CORES_MANA["branco"])
         c.setFont(direita_top_fonte, direita_top_tamanho)
-        c.drawRightString(largura - 15 * mm, altura - h / 2 + 1 * mm, direita_top)
+        c.drawRightString(largura - margem_mm * mm, altura - h / 2 + 1 * mm, direita_top)
     if direita_bot:
-        c.setFillColor(CORES_MANA["cinza_claro"])
-        c.setFont("Helvetica", 8.5)
-        c.drawRightString(largura - 15 * mm, altura - h / 2 - 5 * mm, direita_bot)
+        c.setFillColor(direita_bot_cor or CORES_MANA["cinza_claro"])
+        c.setFont(direita_bot_fonte, direita_bot_tamanho)
+        c.drawRightString(largura - margem_mm * mm, altura - h / 2 - 5 * mm, direita_bot)
 
 
 def _desenhar_rodape(
     c: rl_canvas.Canvas,
     agente: str,
     pagina: int,
+    margem_mm: float = 15,
+    mostrar_pagina: bool = True,
 ) -> None:
-    """Rodapé: linha ouro + texto cinza + numeração."""
+    """Rodapé: linha ouro + texto cinza + numeração (opcional).
+
+    v0.3.0: `margem_mm` e `mostrar_pagina` parametrizáveis. Alguns agentes
+    (gestor-comercial) usam margem 18mm e não mostram número de página.
+    """
     largura, _ = A4
 
     c.setStrokeColor(CORES_MANA["ouro"])
     c.setLineWidth(1.5)
-    c.line(15 * mm, 18 * mm, largura - 15 * mm, 18 * mm)
+    c.line(margem_mm * mm, 18 * mm, largura - margem_mm * mm, 18 * mm)
 
     agora = datetime.now().strftime("%d/%m/%Y %H:%M")
     c.setFillColor(CORES_MANA["cinza_texto"])
     c.setFont("Helvetica", 8)
     c.drawString(
-        15 * mm,
+        margem_mm * mm,
         13 * mm,
         f"Gerado em {agora} - {agente} - Sementes Mana LTDA",
     )
 
-    c.drawRightString(largura - 15 * mm, 13 * mm, f"pagina {pagina}")
+    if mostrar_pagina:
+        c.drawRightString(largura - margem_mm * mm, 13 * mm, f"pagina {pagina}")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -161,6 +177,12 @@ class PDFMana:
         subtitulo_cor: Color | None = None,
         direita_top_fonte: str = "Helvetica-Bold",
         direita_top_tamanho: float = 11,
+        direita_bot_fonte: str = "Helvetica",
+        direita_bot_tamanho: float = 8.5,
+        direita_bot_cor: Color | None = None,
+        mostrar_logo: bool = True,
+        margem_mm: float = 15,
+        mostrar_pagina_rodape: bool = True,
     ) -> None:
         self.subtitulo = subtitulo
         self.direita_top = direita_top
@@ -171,14 +193,20 @@ class PDFMana:
         self.subtitulo_cor = subtitulo_cor
         self.direita_top_fonte = direita_top_fonte
         self.direita_top_tamanho = direita_top_tamanho
+        self.direita_bot_fonte = direita_bot_fonte
+        self.direita_bot_tamanho = direita_bot_tamanho
+        self.direita_bot_cor = direita_bot_cor
+        self.mostrar_logo = mostrar_logo
+        self.margem_mm = margem_mm
+        self.mostrar_pagina_rodape = mostrar_pagina_rodape
 
         self._buffer = io.BytesIO()
         self._c = rl_canvas.Canvas(self._buffer, pagesize=A4)
         self._largura, self._altura = A4
 
         self._y_atual = self._altura - (self.altura_cabecalho_mm + 8) * mm
-        self._margem_esquerda = 15 * mm
-        self._margem_direita = self._largura - 15 * mm
+        self._margem_esquerda = margem_mm * mm
+        self._margem_direita = self._largura - margem_mm * mm
         self._margem_inferior = 25 * mm
         self._pagina = 1
 
@@ -197,6 +225,11 @@ class PDFMana:
             subtitulo_cor=self.subtitulo_cor,
             direita_top_fonte=self.direita_top_fonte,
             direita_top_tamanho=self.direita_top_tamanho,
+            direita_bot_fonte=self.direita_bot_fonte,
+            direita_bot_tamanho=self.direita_bot_tamanho,
+            direita_bot_cor=self.direita_bot_cor,
+            mostrar_logo=self.mostrar_logo,
+            margem_mm=self.margem_mm,
         )
 
     def _garantir_espaco(self, altura_necessaria: float) -> None:
@@ -515,7 +548,11 @@ class PDFMana:
 
     def quebra_pagina(self) -> None:
         """Finaliza página atual e abre nova com cabeçalho."""
-        _desenhar_rodape(self._c, self.agente, self._pagina)
+        _desenhar_rodape(
+            self._c, self.agente, self._pagina,
+            margem_mm=self.margem_mm,
+            mostrar_pagina=self.mostrar_pagina_rodape,
+        )
         self._c.showPage()
         self._pagina += 1
         self._y_atual = self._altura - (self.altura_cabecalho_mm + 8) * mm
@@ -541,7 +578,11 @@ class PDFMana:
 
     def bytes(self) -> bytes:
         """Finaliza o PDF e retorna os bytes."""
-        _desenhar_rodape(self._c, self.agente, self._pagina)
+        _desenhar_rodape(
+            self._c, self.agente, self._pagina,
+            margem_mm=self.margem_mm,
+            mostrar_pagina=self.mostrar_pagina_rodape,
+        )
         self._c.save()
         return self._buffer.getvalue()
 
